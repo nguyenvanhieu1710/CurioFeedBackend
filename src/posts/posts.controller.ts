@@ -1,4 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
+import { EventPattern, Payload } from '@nestjs/microservices';
 import { PostsService } from './posts.service';
 
 @Controller('api/posts')
@@ -20,5 +21,16 @@ export class PostsController {
     // Giới hạn tối đa 20 bài một lần fetch để tránh quá tải
     const safeCount = Math.min(Math.max(numCount, 1), 20);
     return this.postsService.getRandomBatch(safeCount);
+  }
+
+  @EventPattern('curiofeed.new_articles')
+  async handleNewArticle(@Payload() message: any) {
+    try {
+      const postData = typeof message === 'string' ? JSON.parse(message) : message;
+      await this.postsService.upsertPost(postData);
+      console.log(`[Kafka] Đã nhận và lưu thành công: ${postData.content_hash}`);
+    } catch (error) {
+      console.error('Lỗi khi xử lý message từ Kafka:', error);
+    }
   }
 }

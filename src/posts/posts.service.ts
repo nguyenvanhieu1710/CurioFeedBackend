@@ -17,4 +17,19 @@ export class PostsService {
     const results = await this.postModel.aggregate([{ $sample: { size: count } }]);
     return results;
   }
+
+  async upsertPost(postData: any): Promise<void> {
+    try {
+      // Dùng content_hash làm index unique để chống trùng lặp, tương tự logic cũ của Python
+      await this.postModel.updateOne(
+        { content_hash: postData.content_hash },
+        { $setOnInsert: postData },
+        { upsert: true }
+      );
+    } catch (error: any) {
+      if (error.code !== 11000) { // Bỏ qua lỗi duplicate key
+        console.error('Lỗi khi lưu bài viết từ Kafka:', error);
+      }
+    }
+  }
 }
